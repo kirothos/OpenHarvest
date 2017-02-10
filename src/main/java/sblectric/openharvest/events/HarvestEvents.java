@@ -97,14 +97,26 @@ public class HarvestEvents {
 		
 		// make sure the tool is a valid axe and such
 		ItemStack heldStack = player.getHeldItemMainhand();
-		if(heldStack != null && heldStack.getItem() instanceof ItemTool && playerSneakModeValid(player)) {
+
+		// Can't treecapitate without holding an axe
+		if (heldStack == null) return false;
+
+		// Prevent treecapitation with an axe with 1 durability - just break the block normally
+		if(heldStack.isItemStackDamageable()) {
+			int remainingDurability = heldStack.getMaxDamage() - heldStack.getItemDamage();
+			if (remainingDurability == 1)
+				return false;
+		}
+
+		if(heldStack.getItem() instanceof ItemTool && playerSneakModeValid(player)) {
 			ItemTool tool = (ItemTool)heldStack.getItem();
 			for(String tc : tool.getToolClasses(heldStack)) {
 				if(tc.equals("axe")) {
 					// now iterate through the drops to make sure the block is an oredict log
 					for(ItemStack s : blockState.getBlock().getDrops(player.worldObj, pos, blockState, 0)) {
 						for(int id : OreDictionary.getOreIDs(s)) {
-							if(OreDictionary.getOreName(id).equals("logWood")) {
+							if(OreDictionary.getOreName(id).equals("logWood")
+									|| OreDictionary.getOreName(id).equals("livingwood")) {
 								return true;
 							}
 						}
@@ -118,7 +130,7 @@ public class HarvestEvents {
 	/** Try to harvest a log, and give the player Mining Fatigue in treecapitate mode */
 	@SubscribeEvent
 	public void onStartHarvestLog(PlayerEvent.BreakSpeed event) {
-		World world = event.getEntity().worldObj;
+		World world = event.getEntity().getEntityWorld();
 		if(world.isRemote || !HarvestConfig.doTreeChop) return; // nothing clientside
 		
 		EntityPlayerMP player = (EntityPlayerMP)event.getEntityPlayer();
@@ -179,8 +191,14 @@ public class HarvestEvents {
 
 		// finally, break the current block and damage or destroy the axe
 		if(isBlockHarvestable(world, pos, stateFirstBlock)) {
+			int remainingDurability = tool.getMaxDamage() - tool.getItemDamage();
+			if(remainingDurability == 1 && !HarvestConfig.breakAxe) return;  // bail out before breaking axe
+			//System.out.println(String.format("Remaining Durability: %d", remainingDurability));
+
 			world.destroyBlock(pos, true);
-			tool.damageItem(1, player);
+
+			if (tool.isItemStackDamageable())
+				tool.damageItem(1, player);
 			if(tool.stackSize <= 0) player.setHeldItem(EnumHand.MAIN_HAND, null);
 			blocks++; // increase the broken count
 		} else if(world.getBlockState(pos).getBlock().isLeaves(world.getBlockState(pos), world, pos)) {

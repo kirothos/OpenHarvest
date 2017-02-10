@@ -27,6 +27,7 @@ public class HarvestConfig {
 	public static int maxLeavesAtOnce;
 	public static List<String> modLogBlacklist;
 	public static List<String> logBlacklist;
+	public static boolean breakAxe;
  	
 	private static void getConfig() {
 		config.load();
@@ -54,6 +55,8 @@ public class HarvestConfig {
 				"Mods (by mod id) with logs that " + RefStrings.NAME + " should ignore"));
 		logBlacklist = Arrays.asList(config.getStringList("Log Blacklist", "logs", new String[0], 
 				"Specific logs (by registry name) that " + RefStrings.NAME + " should ignore"));
+		breakAxe = config.getBoolean("Break axe", "logs", true,
+				"Whether to continue breaking logs until the axe breaks, or stop at 1 durability");
 	
 		if(config.hasChanged()) config.save();
 	}
